@@ -12,7 +12,7 @@ FROM_FUKUZUMI_WEEKDAYS = ["05:45", "06:05", "06:45", "07:00", "07:20", "07:40", 
 FROM_FUKUZUMI_HOLIDAYS = ["06:25", "07:05", "07:25", "07:45", "08:05", "08:45", "09:15", "09:45", "10:15", "10:45", "11:15", "11:45", "12:15", "13:15", "14:15", "14:45", "15:45", "16:45", "17:45", "19:05", "20:25", "21:05"]
 
 def is_holiday(now: datetime) -> bool:
-    return jpholiday.is_holiday(now)
+    return jpholiday.is_holiday(now) or now.weekday()
 
 def get_buses(bus_list: list, now: datetime) -> list:
     return_bus_list = []
@@ -23,16 +23,19 @@ def get_buses(bus_list: list, now: datetime) -> list:
     return return_bus_list
 
 @app.get("/fukuzumi")
-async def fukuzumi():
+async def fukuzumi() -> dict:
     now = datetime.datetime.now(TIME_ZONE_JST)
+    response = {}
+
     if is_holiday(now):
-        chitose_bus_list = get_buses(FROM_CHITOSE_STATION_HOLIDAYS, now)
-        fukuzumi_bus_list = get_buses(FROM_CHITOSE_STATION_HOLIDAYS, now)
+        response["from_chitose"] = get_buses(FROM_CHITOSE_STATION_HOLIDAYS, now)
+        response["from_fkuzumi"] = get_buses(FROM_CHITOSE_STATION_HOLIDAYS, now)
+
+        holiday_name = jpholiday.is_holiday_name(now)
+        if holiday_name:
+            response["holiday"] = holiday_name
     else:
-        chitose_bus_list = get_buses(FROM_CHITOSE_STATION_WEEKDAYS, now)
-        fukuzumi_bus_list = get_buses(FROM_FUKUZUMI_WEEKDAYS, now)
-    
-    return {
-        "from_chitose": chitose_bus_list,
-        "from_fkuzumi": fukuzumi_bus_list,
-    }
+        response["from_chitose"] = get_buses(FROM_CHITOSE_STATION_WEEKDAYS, now)
+        response["from_fkuzumi"] = get_buses(FROM_FUKUZUMI_WEEKDAYS, now)
+        
+    return response
